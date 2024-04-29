@@ -8,46 +8,12 @@ from django.http import HttpResponse, Http404
 from user.serializers import UserSerializer, UserLoginSerializer
 from .models import Post
 from .serializers import PostSerializer
-@api_view(['POST'])
-def register(request):
-    serializer = UserSerializer(data=request.data)
-
-    if serializer.is_valid():
-        serializer.save()
-
-        return Response(status=status.HTTP_201_CREATED)
-    return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class Login(APIView):
-    def post(self,request):
-
-        serializer = UserLoginSerializer(data= request.data)
-
-        if not serializer.is_valid():
-            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        username = serializer.validated_data['username']
-        password = serializer.validated_data['password']
-
-        user = authenticate(username=username,password=password)
-
-        if user is None:
-            return Response(data={"invalid username for password"}, status=status.HTTP_400_BAD_REQUEST)
-
-        login(request,user)
-        return Response(status=status.HTTP_200_OK)
-
-
-@api_view(['POST'])
-def logout_view(request):
-    logout(request)
-    return Response({"message": "Logged out successfully."}, status=status.HTTP_200_OK)
-
-
-
+from rest_framework import permissions
+from .permissions import IsOwnerOrReadOnly
 
 class PostListCreateAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
     def get(self, request):
         posts = Post.objects.all()
         serializer = PostSerializer(posts, many=True)
@@ -61,6 +27,8 @@ class PostListCreateAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PostRetrieveUpdateDestroyAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
+
     def get_object(self, pk):
         try:
             return Post.objects.get(pk=pk)
@@ -84,5 +52,6 @@ class PostRetrieveUpdateDestroyAPIView(APIView):
         post = self.get_object(pk)
         post.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 
